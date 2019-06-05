@@ -42,6 +42,9 @@
 *.idb
 *.pdb
 
+# VS Code files
+.vscode/
+
 # Kernel Module Compile Results
 *.mod*
 *.cmd
