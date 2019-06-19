@@ -132,7 +132,7 @@ static ngx_resolver_node_t *ngx_resolver_lookup_addr6(ngx_resolver_t *r,
 
 
 ngx_resolver_t *
-ngx_resolver_create(ngx_conf_t *cf, ngx_str_t *names, ngx_uint_t n)
+ngx_httpdns_resolver_create(ngx_conf_t *cf, ngx_str_t *names, ngx_uint_t n)
 {
     ngx_str_t                   s;
     ngx_url_t                   u;
@@ -366,7 +366,7 @@ ngx_resolver_cleanup_tree(ngx_resolver_t *r, ngx_rbtree_t *tree)
 
 
 ngx_resolver_ctx_t *
-ngx_resolve_start(ngx_resolver_t *r, ngx_resolver_ctx_t *temp)
+ngx_httpdns_resolve_start(ngx_resolver_t *r, ngx_resolver_ctx_t *temp)
 {
     in_addr_t            addr;
     ngx_resolver_ctx_t  *ctx;
@@ -405,7 +405,7 @@ ngx_resolve_start(ngx_resolver_t *r, ngx_resolver_ctx_t *temp)
 
 
 ngx_int_t
-ngx_resolve_name(ngx_resolver_ctx_t *ctx)
+ngx_httpdns_resolve_name(ngx_resolver_ctx_t *ctx)
 {
     size_t           slen;
     ngx_int_t        rc;
@@ -487,7 +487,7 @@ failed:
 
 
 void
-ngx_resolve_name_done(ngx_resolver_ctx_t *ctx)
+ngx_httpdns_resolve_name_done(ngx_resolver_ctx_t *ctx)
 {
     ngx_uint_t            i;
     ngx_resolver_t       *r;
@@ -591,8 +591,10 @@ ngx_resolve_name_locked(ngx_resolver_t *r, ngx_resolver_ctx_t *ctx,
     ngx_resolver_addr_t  *addrs;
     ngx_resolver_node_t  *rn;
 
+    /* 域名全部转成小写 */
     ngx_strlow(name->data, name->data, name->len);
 
+    /* 计算hash用于在缓存中查找 */
     hash = ngx_crc32_short(name->data, name->len);
 
     if (ctx->service.len) {
@@ -903,7 +905,7 @@ failed:
 
 
 ngx_int_t
-ngx_resolve_addr(ngx_resolver_ctx_t *ctx)
+ngx_httpdns_resolve_addr(ngx_resolver_ctx_t *ctx)
 {
     u_char               *name;
     in_addr_t             addr;
@@ -1123,7 +1125,7 @@ failed:
 
 
 void
-ngx_resolve_addr_done(ngx_resolver_ctx_t *ctx)
+ngx_httpdns_resolve_addr_done(ngx_resolver_ctx_t *ctx)
 {
     ngx_queue_t          *expire_queue;
     ngx_rbtree_t         *tree;
@@ -3363,7 +3365,9 @@ failed:
     return;
 }
 
-
+/*
+ * 从缓存中查找解析结果
+ */
 static ngx_resolver_node_t *
 ngx_resolver_lookup_name(ngx_resolver_t *r, ngx_str_t *name, uint32_t hash)
 {
@@ -4351,7 +4355,7 @@ next_srv:
 
 
 char *
-ngx_resolver_strerror(ngx_int_t err)
+ngx_httpdns_resolver_strerror(ngx_int_t err)
 {
     static char *errors[] = {
         "Format error",     /* FORMERR */

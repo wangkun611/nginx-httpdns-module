@@ -6,6 +6,8 @@
 
 #include "ngx_http_httpdns_module.h"
 
+static ngx_http_httpdns_ctx_t *ngx_http_httpdns_create_ctx(ngx_http_request_t *r);
+
 static void *
 ngx_http_httpdns_create_loc_conf(ngx_conf_t *cf)
 {
@@ -27,6 +29,19 @@ ngx_http_httpdns_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
     return NGX_CONF_OK;
 }
 
+static ngx_http_httpdns_ctx_t *
+ngx_http_httpdns_create_ctx(ngx_http_request_t *r)
+{
+    ngx_http_httpdns_ctx_t *ctx;
+
+    ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_httpdns_ctx_t));
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    return ctx;
+}
+
 static ngx_str_t  ngx_http_sample_text = ngx_string(
     "I'm so powerful on stage that I seem to have created a monster.\n" \
     "When I'm performing I'm an extrovert, yet inside I'm a completely different man."
@@ -35,9 +50,24 @@ static ngx_str_t  ngx_http_sample_text = ngx_string(
 static ngx_int_t
 ngx_http_httpdns_handler(ngx_http_request_t *r)
 {
+    ngx_http_httpdns_loc_conf_t  *hlcf;
+    ngx_http_httpdns_ctx_t* ctx;
     ngx_int_t     rc;
     ngx_buf_t    *b;
     ngx_chain_t   out;
+
+    hlcf = ngx_http_get_module_loc_conf(r, ngx_http_httpdns_module);
+    hlcf;
+
+    ctx = ngx_http_get_module_ctx(r, ngx_http_httpdns_module);
+    if (ctx == NULL) {
+        ctx = ngx_http_httpdns_create_ctx(r);
+        if (ctx == NULL) {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
+        ngx_http_set_ctx(r, ctx, ngx_http_httpdns_module);
+    }
 
     r->headers_out.status = NGX_HTTP_OK;
     r->headers_out.content_length_n = ngx_http_sample_text.len;

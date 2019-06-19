@@ -1,4 +1,4 @@
-
+﻿
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) Nginx, Inc.
@@ -13,11 +13,14 @@
 #define _NGX_RESOLVER_H_INCLUDED_
 
 
-#define NGX_RESOLVE_A         1
-#define NGX_RESOLVE_CNAME     5
-#define NGX_RESOLVE_PTR       12
-#define NGX_RESOLVE_MX        15
-#define NGX_RESOLVE_TXT       16
+#define NGX_RESOLVE_A         1   // a host address
+#define NGX_RESOLVE_NS        2   // an authoritative name server
+#define NGX_RESOLVE_MD        3   // a mail destination (Obsolete - use MX)
+#define NGX_RESOLVE_MF        4   // a mail forwarder (Obsolete - use MX)
+#define NGX_RESOLVE_CNAME     5   // the canonical name for an alias
+#define NGX_RESOLVE_PTR       12  // a domain name pointer
+#define NGX_RESOLVE_MX        15  // mail exchange
+#define NGX_RESOLVE_TXT       16  // text strings
 #if (NGX_HAVE_INET6)
 #define NGX_RESOLVE_AAAA      28
 #endif
@@ -190,10 +193,10 @@ struct ngx_resolver_s {
 
     ngx_uint_t                log_level;
 };
-
+typedef struct ngx_resolver_s ngx_httpdns_resolver_s;
 
 struct ngx_resolver_ctx_s {
-    ngx_resolver_ctx_t       *next;
+    ngx_resolver_ctx_t       *next;     /* ctx 是一个列表，按照CNAME的解析顺序连接 */
     ngx_resolver_t           *resolver;
     ngx_resolver_node_t      *node;
 
@@ -226,15 +229,15 @@ struct ngx_resolver_ctx_s {
 };
 
 
-ngx_resolver_t *ngx_resolver_create(ngx_conf_t *cf, ngx_str_t *names,
+ngx_resolver_t *ngx_httpdns_resolver_create(ngx_conf_t *cf, ngx_str_t *names,
     ngx_uint_t n);
-ngx_resolver_ctx_t *ngx_resolve_start(ngx_resolver_t *r,
+ngx_resolver_ctx_t *ngx_httpdns_resolve_start(ngx_resolver_t *r,
     ngx_resolver_ctx_t *temp);
-ngx_int_t ngx_resolve_name(ngx_resolver_ctx_t *ctx);
-void ngx_resolve_name_done(ngx_resolver_ctx_t *ctx);
-ngx_int_t ngx_resolve_addr(ngx_resolver_ctx_t *ctx);
-void ngx_resolve_addr_done(ngx_resolver_ctx_t *ctx);
-char *ngx_resolver_strerror(ngx_int_t err);
+ngx_int_t ngx_httpdns_resolve_name(ngx_resolver_ctx_t *ctx);
+void ngx_httpdns_resolve_name_done(ngx_resolver_ctx_t *ctx);
+ngx_int_t ngx_httpdns_resolve_addr(ngx_resolver_ctx_t *ctx);
+void ngx_httpdns_resolve_addr_done(ngx_resolver_ctx_t *ctx);
+char *ngx_httpdns_resolver_strerror(ngx_int_t err);
 
 
 #endif /* _NGX_RESOLVER_H_INCLUDED_ */

@@ -3,7 +3,8 @@
         "ngx_config.h": "c",
         "ngx_auto_headers.h": "c",
         "ngx_http.h": "c",
-        "ngx_http_httpdns_module.h": "c"
+        "ngx_http_httpdns_module.h": "c",
+        "ngx_http_httpdns_resolver.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }
