@@ -9,8 +9,8 @@
 #include <ngx_core.h>
 
 
-#ifndef _NGX_RESOLVER_H_INCLUDED_
-#define _NGX_RESOLVER_H_INCLUDED_
+#ifndef _NGX_HTTPDNS_RESOLVER_H_INCLUDED_
+#define _NGX_HTTPDNS_RESOLVER_H_INCLUDED_
 
 
 #define NGX_RESOLVE_A         1   // a host address
@@ -37,10 +37,10 @@
 
 #define NGX_NO_RESOLVER       (void *) -1
 
-#define NGX_RESOLVER_MAX_RECURSION    50
+#define ngx_httpdns_resolver_MAX_RECURSION    50
 
 
-typedef struct ngx_resolver_s  ngx_resolver_t;
+typedef struct ngx_httpdns_resolver_s  ngx_httpdns_resolver_t;
 
 
 typedef struct {
@@ -52,13 +52,13 @@ typedef struct {
     ngx_log_t                 log;
     ngx_buf_t                *read_buf;
     ngx_buf_t                *write_buf;
-    ngx_resolver_t           *resolver;
-} ngx_resolver_connection_t;
+    ngx_httpdns_resolver_t           *resolver;
+} ngx_httpdns_resolver_connection_t;
 
 
-typedef struct ngx_resolver_ctx_s  ngx_resolver_ctx_t;
+typedef struct ngx_httpdns_resolver_ctx_s  ngx_httpdns_resolver_ctx_t;
 
-typedef void (*ngx_resolver_handler_pt)(ngx_resolver_ctx_t *ctx);
+typedef void (*ngx_httpdns_resolver_handler_pt)(ngx_httpdns_resolver_ctx_t *ctx);
 
 
 typedef struct {
@@ -67,7 +67,7 @@ typedef struct {
     ngx_str_t                 name;
     u_short                   priority;
     u_short                   weight;
-} ngx_resolver_addr_t;
+} ngx_httpdns_resolver_addr_t;
 
 
 typedef struct {
@@ -75,7 +75,7 @@ typedef struct {
     u_short                   priority;
     u_short                   weight;
     u_short                   port;
-} ngx_resolver_srv_t;
+} ngx_httpdns_resolver_srv_t;
 
 
 typedef struct {
@@ -84,12 +84,12 @@ typedef struct {
     u_short                   weight;
     u_short                   port;
 
-    ngx_resolver_ctx_t       *ctx;
+    ngx_httpdns_resolver_ctx_t       *ctx;
     ngx_int_t                 state;
 
     ngx_uint_t                naddrs;
     ngx_addr_t               *addrs;
-} ngx_resolver_srv_name_t;
+} ngx_httpdns_resolver_srv_name_t;
 
 
 typedef struct {
@@ -116,7 +116,7 @@ typedef struct {
         in_addr_t             addr;
         in_addr_t            *addrs;
         u_char               *cname;
-        ngx_resolver_srv_t   *srvs;
+        ngx_httpdns_resolver_srv_t   *srvs;
     } u;
 
     u_char                    code;
@@ -144,11 +144,12 @@ typedef struct {
 
     ngx_uint_t                last_connection;
 
-    ngx_resolver_ctx_t       *waiting;
-} ngx_resolver_node_t;
+    ngx_httpdns_resolver_ctx_t       *waiting;
+} ngx_httpdns_resolver_node_t;
 
 
-struct ngx_resolver_s {
+struct ngx_httpdns_resolver_s {
+    ngx_int_t                 recursion_mode;   /* 是否递归模式 */
     /* has to be pointer because of "incomplete type" */
     ngx_event_t              *event;
     void                     *dummy;
@@ -169,6 +170,9 @@ struct ngx_resolver_s {
 
     ngx_rbtree_t              addr_rbtree;
     ngx_rbtree_node_t         addr_sentinel;
+
+    ngx_rbtree_t              ns_rbtree;
+    ngx_rbtree_node_t         ns_sentinel;
 
     ngx_queue_t               name_resend_queue;
     ngx_queue_t               srv_resend_queue;
@@ -193,51 +197,56 @@ struct ngx_resolver_s {
 
     ngx_uint_t                log_level;
 };
-typedef struct ngx_resolver_s ngx_httpdns_resolver_s;
 
-struct ngx_resolver_ctx_s {
-    ngx_resolver_ctx_t       *next;     /* ctx 是一个列表，按照CNAME的解析顺序连接 */
-    ngx_resolver_t           *resolver;
-    ngx_resolver_node_t      *node;
+struct ngx_httpdns_resolver_ctx_s {
+    ngx_httpdns_resolver_ctx_t       *next;     /* ctx 是一个列表，按照CNAME的解析顺序连接 */
+    ngx_httpdns_resolver_t           *resolver;
+    ngx_httpdns_resolver_node_t      *node;
 
     /* event ident must be after 3 pointers as in ngx_connection_t */
     ngx_int_t                 ident;
 
     ngx_int_t                 state;
     ngx_str_t                 name;
+    struct sockaddr           client_addr;       /* 用户的出口IP, edns-client-subnet */
     ngx_str_t                 service;
 
     time_t                    valid;
     ngx_uint_t                naddrs;
-    ngx_resolver_addr_t      *addrs;
-    ngx_resolver_addr_t       addr;
+    ngx_httpdns_resolver_addr_t      *addrs;
+    ngx_httpdns_resolver_addr_t       addr;
     struct sockaddr_in        sin;
 
     ngx_uint_t                count;
     ngx_uint_t                nsrvs;
-    ngx_resolver_srv_name_t  *srvs;
+    ngx_httpdns_resolver_srv_name_t  *srvs;
 
-    ngx_resolver_handler_pt   handler;
+    ngx_httpdns_resolver_handler_pt   handler;
     void                     *data;
     ngx_msec_t                timeout;
 
     unsigned                  quick:1;
     unsigned                  async:1;
     unsigned                  cancelable:1;
-    ngx_uint_t                recursion;
+    ngx_uint_t                recursion;      /* 当前递归查询的深度 */
     ngx_event_t              *event;
 };
 
+/* 
+ * 创建DNS解析器,如果 n > 0 转发模式. 如果 ns不为空,递归模式
+ * param: names, n 上级DNS地址
+ * param: ns 权威服务器
+ */
+ngx_httpdns_resolver_t *ngx_httpdns_resolver_create(ngx_conf_t *cf, ngx_str_t *names,
+    ngx_uint_t n, ngx_array_t *ns);
 
-ngx_resolver_t *ngx_httpdns_resolver_create(ngx_conf_t *cf, ngx_str_t *names,
-    ngx_uint_t n);
-ngx_resolver_ctx_t *ngx_httpdns_resolve_start(ngx_resolver_t *r,
-    ngx_resolver_ctx_t *temp);
-ngx_int_t ngx_httpdns_resolve_name(ngx_resolver_ctx_t *ctx);
-void ngx_httpdns_resolve_name_done(ngx_resolver_ctx_t *ctx);
-ngx_int_t ngx_httpdns_resolve_addr(ngx_resolver_ctx_t *ctx);
-void ngx_httpdns_resolve_addr_done(ngx_resolver_ctx_t *ctx);
+ngx_httpdns_resolver_ctx_t *ngx_httpdns_resolve_start(ngx_httpdns_resolver_t *r,
+    ngx_httpdns_resolver_ctx_t *temp);
+ngx_int_t ngx_httpdns_resolve_name(ngx_httpdns_resolver_ctx_t *ctx);
+void ngx_httpdns_resolve_name_done(ngx_httpdns_resolver_ctx_t *ctx);
+ngx_int_t ngx_httpdns_resolve_addr(ngx_httpdns_resolver_ctx_t *ctx);
+void ngx_httpdns_resolve_addr_done(ngx_httpdns_resolver_ctx_t *ctx);
 char *ngx_httpdns_resolver_strerror(ngx_int_t err);
 
 
-#endif /* _NGX_RESOLVER_H_INCLUDED_ */
+#endif /* _NGX_HTTPDNS_RESOLVER_H_INCLUDED_ */

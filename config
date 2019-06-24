@@ -1,14 +1,16 @@
 ngx_addon_name="ngx_http_httpdns_module"
 
-HTTPDNS_DEPS="                                              \
+HTTPDNS_DEPS="                                                   \
                 $ngx_addon_dir/ngx_http_httpdns_module.h         \
                 $ngx_addon_dir/ngx_http_httpdns_resolver.h       \
+                $ngx_addon_dir/ngx_http_httpdns_response.h       \
                 "
 
 
-HTTPDNS_CORE_SRCS="                                          \
+HTTPDNS_CORE_SRCS="                                               \
                 $ngx_addon_dir/ngx_http_httpdns_module.c          \
                 $ngx_addon_dir/ngx_http_httpdns_resolver.c        \
+                $ngx_addon_dir/ngx_http_httpdns_response.c        \
                 "
 
 CFLAGS="$CFLAGS -I$ngx_addon_dir"
