@@ -16,6 +16,21 @@
             "cwd": "${workspaceFolder}/../../objs/",
             "environment": [],
             "externalConsole": true
+        },{
+            "name": "c/c++ Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../objs/nginx",
+            "args": [
+                "-c", "conf/nginx.conf", "-p",  "./"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../../objs/",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "lldb",
+            "preLaunchTask":"c++"
+    
         }
     ]
 }

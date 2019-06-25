@@ -20,15 +20,12 @@
         },
         {
             "type": "shell",
-            "label": "cl.exe build active file",
-            "command": "cl.exe",
-            "args": [
-                "/Zi",
-                "/EHsc",
-                "/Fe:",
-                "${fileDirname}\\${fileBasenameNoExtension}.exe",
-                "${file}"
-            ]
+            "label": "clang build active file",
+            "command": "make",
+            "args": [],
+            "options": {
+                "cwd": "${workspaceRoot}/../../"
+            }
         }
     ]
 }

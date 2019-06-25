@@ -1850,12 +1850,13 @@ found:
         /* skip Answers */
         // buf + i + sizeof(ngx_httpdns_resolver_qs_t) posiont of Answers
         pns = buf + i + sizeof(ngx_httpdns_resolver_qs_t);
+        p = pns;
         for (j = 0; i < nan; i++) {
             /* skip name */
             p = pns + 20;
             /* skip Type,Class,TTL */
         }
-        
+        par = p;
     }
 
     switch (qtype) {

@@ -10,7 +10,8 @@
                 "${workspaceFolder}/../../src/os/win32",
                 "${workspaceFolder}/../../objs",
                 "${workspaceFolder}/../../src/http",
-                "${workspaceFolder}/../../src/http/modules"
+                "${workspaceFolder}/../../src/http/modules",
+                "${workspaceFolder}/../../src/os/unix"
             ],
             "defines": [
                 "_DEBUG",
@@ -22,6 +23,27 @@
             "cStandard": "c11",
             "cppStandard": "c++17",
             "intelliSenseMode": "msvc-x64"
+        },
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/../../src/core",
+                "${workspaceFolder}/../../src/event",
+                "${workspaceFolder}/../../src/event/modules",
+                "${workspaceFolder}/../../src/os/unix",
+                "${workspaceFolder}/../../objs",
+                "${workspaceFolder}/../../src/http",
+                "${workspaceFolder}/../../src/http/modules"
+            ],
+            "defines": [],
+            "macFrameworkPath": [
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/System/Library/Frameworks"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
         }
     ],
     "version": 4
