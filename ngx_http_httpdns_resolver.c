@@ -66,6 +66,15 @@ typedef struct {
     u_char  len_lo;
 } ngx_httpdns_resolver_an_t;
 
+typedef struct {
+    ngx_uint_t    name_len;
+    ngx_str_t     name;
+    ngx_uint_t    type;
+    ngx_uint_t    class;
+    ngx_uint_t    ttl;
+    ngx_uint_t    data_len;
+    u_char       *data;
+} ngx_httpdns_resolver_rr_t;
 
 #define ngx_httpdns_resolver_node(n)                                                 \
     (ngx_httpdns_resolver_node_t *)                                                  \
@@ -103,6 +112,8 @@ static void ngx_httpdns_resolver_tcp_write(ngx_event_t *wev);
 static void ngx_httpdns_resolver_tcp_read(ngx_event_t *rev);
 static void ngx_httpdns_resolver_process_response(ngx_httpdns_resolver_t *r, u_char *buf,
     size_t n, ngx_uint_t tcp);
+static void ngx_httpdns_resolver_process_response_new(ngx_httpdns_resolver_t *r, u_char *buf,
+    size_t n, ngx_int_t tcp);
 static void ngx_httpdns_resolver_process_a(ngx_httpdns_resolver_t *r, u_char *buf, size_t n,
     ngx_uint_t ident, ngx_uint_t code, ngx_uint_t qtype,
     ngx_uint_t nan, ngx_uint_t trunc, ngx_uint_t ans);
@@ -1589,7 +1600,7 @@ ngx_httpdns_resolver_udp_read(ngx_event_t *rev)
             return;
         }
 
-        ngx_httpdns_resolver_process_response(rec->resolver, buf, n, 0);
+        ngx_httpdns_resolver_process_response_new(rec->resolver, buf, n, 0);
 
     } while (rev->ready);
 }
@@ -1900,6 +1911,129 @@ done:
 
     ngx_log_error(r->log_level, r->log, 0, err);
 
+    return;
+
+dns_error_name:
+
+    ngx_log_error(r->log_level, r->log, 0,
+                  "DNS error (%ui: %s), query id:%ui, name:\"%*s\"",
+                  code, ngx_httpdns_resolver_strerror(code), ident,
+                  (size_t) rn->nlen, rn->name);
+    return;
+
+dns_error:
+
+    ngx_log_error(r->log_level, r->log, 0,
+                  "DNS error (%ui: %s), query id:%ui",
+                  code, ngx_httpdns_resolver_strerror(code), ident);
+    return;
+}
+
+
+static void ngx_httpdns_resolver_process_response_new(ngx_httpdns_resolver_t *r, u_char *buf,
+    size_t n, ngx_int_t tcp)
+{
+    char               *err;
+    ngx_uint_t          ident, qident, flags, code, nqs, nan, nns, nar,
+                        trunc, qtype, qclass;
+#if (NGX_HAVE_INET6)
+    ngx_uint_t          qident6;
+#endif
+    ngx_uint_t          times;
+
+    ngx_str_t               name;
+    ngx_queue_t             *q;
+    ngx_httpdns_resolver_qs_t    *qs;
+    ngx_array_t          *rr;
+
+    ngx_httpdns_resolver_hdr_t   *response;
+    ngx_httpdns_resolver_node_t  *rn;
+
+    if (n < sizeof(ngx_httpdns_resolver_hdr_t)) {
+        goto short_response;
+    }
+
+    response = (ngx_httpdns_resolver_hdr_t *) buf;
+
+    ident = (response->ident_hi << 8) + response->ident_lo;
+    flags = (response->flags_hi << 8) + response->flags_lo;
+    nqs = (response->nqs_hi << 8) + response->nqs_lo;
+    nan = (response->nan_hi << 8) + response->nan_lo;
+    nns = (response->nns_hi << 8) + response->nns_lo;
+    nar = (response->nar_hi << 8) + response->nar_lo;
+    trunc = flags & 0x0200;
+
+    ngx_log_debug6(NGX_LOG_DEBUG_CORE, r->log, 0,
+                   "resolver DNS response %ui fl:%04Xi %ui/%ui/%ud/%ud",
+                   ident, flags, nqs, nan,
+                   (response->nns_hi << 8) + response->nns_lo,
+                   (response->nar_hi << 8) + response->nar_lo);
+
+    /* response to a standard query */
+    if ((flags & 0xf870) != 0x8000 || (trunc && tcp)) {
+        ngx_log_error(r->log_level, r->log, 0,
+                      "invalid %s DNS response %ui fl:%04Xi",
+                      tcp ? "TCP" : "UDP", ident, flags);
+        return;
+    }
+
+    code = flags & 0x0f;
+
+    if (code == NGX_RESOLVE_FORMERR) {
+
+        times = 0;
+
+        for (q = ngx_queue_head(&r->name_resend_queue);
+             q != ngx_queue_sentinel(&r->name_resend_queue) && times++ < 100;
+             q = ngx_queue_next(q))
+        {
+            rn = ngx_queue_data(q, ngx_httpdns_resolver_node_t, queue);
+            qident = (rn->query[0] << 8) + rn->query[1];
+
+            if (qident == ident) {
+                goto dns_error_name;
+            }
+
+#if (NGX_HAVE_INET6)
+            if (rn->query6) {
+                qident6 = (rn->query6[0] << 8) + rn->query6[1];
+
+                if (qident6 == ident) {
+                    goto dns_error_name;
+                }
+            }
+#endif
+        }
+
+        goto dns_error;
+    }
+
+    if (code > NGX_RESOLVE_REFUSED) {
+        goto dns_error;
+    }
+
+    if (nqs != 1) {
+        err = "invalid number of questions in DNS response";
+        goto done;
+    }
+
+    if (ngx_httpdns_resolver_copy(r, &name, buf, 
+                          buf + sizeof(ngx_httpdns_resolver_hdr_t), buf + n)
+        != NGX_OK)
+    {
+
+    }
+
+    rr = NULL;
+    qs = 0;
+    qclass = 0;
+    qtype = 0;
+short_response:
+
+    err = "short DNS response";
+
+done:
+    ngx_log_error(r->log_level, r->log, 0, err);
     return;
 
 dns_error_name:
